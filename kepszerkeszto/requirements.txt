@@ -3,3 +3,6 @@ diffusers
 accelerate
 safetensors
 Pillow
+torch
+sentencepiece
+huggingface_hub[hf_xet]
