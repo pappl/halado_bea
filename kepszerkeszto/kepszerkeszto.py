@@ -52,6 +52,9 @@ class KepSzerkeszto:
         self.mentes_gomb = tk.Button(self.gomb_frame, text="Mentés", command=self.kep_mentese, state=tk.DISABLED)
         self.mentes_gomb.pack(side=tk.LEFT, padx=10)
 
+        self.forgatas_gomb = tk.Button(self.gomb_frame, text="Forgatás 90°", command=self.kep_forgatasa, state=tk.DISABLED)
+        self.forgatas_gomb.pack(side=tk.LEFT, padx=10)
+
         self.ai_gomb = tk.Button(self.ai_frame, text="Átalakítás", command=self.ai_atalakitas, state=tk.DISABLED)
         self.ai_gomb.pack(side=tk.LEFT, padx=10)
 
@@ -133,6 +136,7 @@ class KepSzerkeszto:
                 
                 self.mentes_gomb.config(state=tk.NORMAL)
                 self.ai_gomb.config(state=tk.NORMAL)
+                self.forgatas_gomb.config(state=tk.NORMAL)
                 
             except Exception as e:
                 messagebox.showerror("Hiba", f"Hiba a kép betöltésekor: {e}")
@@ -208,6 +212,16 @@ class KepSzerkeszto:
         self.neg_prompt_var.set("")
         self.entry_valtozas_var.set("")
         self.entry_erosseg_var.set("")
+
+    def kep_forgatasa(self):
+        if self.megjelenitett_kep:
+            self.megjelenitett_kep = self.megjelenitett_kep.rotate(-90, expand=True)
+            
+            jelenlegi_szelesseg = self.canvas.winfo_width()
+            jelenlegi_magassag = self.canvas.winfo_height()
+            
+            self.canvas.config(width=jelenlegi_magassag, height=jelenlegi_szelesseg)
+            self.kep_megjelenitese()
 
 if __name__ == "__main__":
     root = tk.Tk()
