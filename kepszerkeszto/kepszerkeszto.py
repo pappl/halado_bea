@@ -55,6 +55,15 @@ class KepSzerkeszto:
         self.forgatas_gomb = tk.Button(self.gomb_frame, text="Forgatás 90°", command=self.kep_forgatasa, state=tk.DISABLED)
         self.forgatas_gomb.pack(side=tk.LEFT, padx=10)
 
+        self.kijeloles_gomb = tk.Button(self.gomb_frame, text="Kijelölés", command=self.kijeloles_mod_be, state=tk.DISABLED)
+        self.kijeloles_gomb.pack(side=tk.LEFT, padx=10)
+        
+        self.vagas_gomb = tk.Button(self.gomb_frame, text="Vágás", command=self.vagas_alkalmazasa, state=tk.DISABLED)
+        self.vagas_gomb.pack(side=tk.LEFT, padx=10)
+        
+        self.vagas_elvetese_gomb = tk.Button(self.gomb_frame, text="Vágás Elvetése", command=self.vagas_elvetese, state=tk.DISABLED)
+        self.vagas_elvetese_gomb.pack(side=tk.LEFT, padx=10)
+
         self.ai_gomb = tk.Button(self.ai_frame, text="Átalakítás", command=self.ai_atalakitas, state=tk.DISABLED)
         self.ai_gomb.pack(side=tk.LEFT, padx=10)
 
@@ -82,6 +91,16 @@ class KepSzerkeszto:
         self.erosseg_label.pack(side=tk.LEFT, padx=10)
         self.erosseg_entry= tk.Entry(self.ai_frame2,textvariable = self.entry_erosseg_var, width= 10)
         self.erosseg_entry.pack(side=tk.LEFT, padx=10)
+
+
+
+        self.crop_start_x = None
+        self.crop_start_y = None
+        self.crop_rectangle_id = None
+        self.is_cropping = False
+        self.current_scale = 1.0
+        self.x_offset = 0
+        self.y_offset = 0
 
     def kilepes_teljes_kepernyobol(self, event):
         self.master.attributes('-fullscreen', False)
@@ -137,6 +156,7 @@ class KepSzerkeszto:
                 self.mentes_gomb.config(state=tk.NORMAL)
                 self.ai_gomb.config(state=tk.NORMAL)
                 self.forgatas_gomb.config(state=tk.NORMAL)
+                self.kijeloles_gomb.config(state=tk.NORMAL)
                 
             except Exception as e:
                 messagebox.showerror("Hiba", f"Hiba a kép betöltésekor: {e}")
@@ -222,6 +242,111 @@ class KepSzerkeszto:
             
             self.canvas.config(width=jelenlegi_magassag, height=jelenlegi_szelesseg)
             self.kep_megjelenitese()
+
+    def kijeloles_mod_be(self):
+        if not self.megjelenitett_kep:
+            return
+
+        self.is_cropping = True
+        
+        self.canvas.bind("<ButtonPress-1>", self.on_press)
+        self.canvas.bind("<B1-Motion>", self.on_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.on_release)
+        
+        self.kijeloles_gomb.config(state=tk.DISABLED)
+        self.vagas_gomb.config(state=tk.DISABLED)
+        self.forgatas_gomb.config(state=tk.DISABLED)
+        self.ai_gomb.config(state=tk.DISABLED)
+        self.vagas_elvetese_gomb.config(state=tk.NORMAL)
+    
+    def on_press(self, event):
+        if self.is_cropping:
+            if self.crop_rectangle_id:
+                self.canvas.delete(self.crop_rectangle_id)
+                self.crop_rectangle_id = None
+            
+            self.crop_start_x = event.x
+            self.crop_start_y = event.y
+
+    def on_drag(self, event):
+        if self.is_cropping and self.crop_start_x is not None:
+            jelenlegi_x = event.x
+            jelenlegi_y = event.y
+
+            if self.crop_rectangle_id:
+                self.canvas.delete(self.crop_rectangle_id)
+            
+            self.crop_rectangle_id = self.canvas.create_rectangle(
+                self.crop_start_x, self.crop_start_y, jelenlegi_x, jelenlegi_y,
+                outline="red", width=2, dash=(5, 2)
+            )
+
+    def on_release(self, event):
+        if self.is_cropping and self.crop_start_x is not None:
+            self.crop_end_x = event.x
+            self.crop_end_y = event.y
+            
+            self.vagas_gomb.config(state=tk.NORMAL)
+
+
+    def vagas_alkalmazasa(self):
+        if not self.is_cropping or not self.crop_rectangle_id:
+            messagebox.showerror("Hiba", "Nincs kijelölt vágási terület.")
+            return
+
+        x1_canvas = min(self.crop_start_x, self.crop_end_x)
+        y1_canvas = min(self.crop_start_y, self.crop_end_y)
+        x2_canvas = max(self.crop_start_x, self.crop_end_x)
+        y2_canvas = max(self.crop_start_y, self.crop_end_y)
+        
+        x1_kep = (x1_canvas - self.x_offset) / self.current_scale
+        y1_kep = (y1_canvas - self.y_offset) / self.current_scale
+        x2_kep = (x2_canvas - self.x_offset) / self.current_scale
+        y2_kep = (y2_canvas - self.y_offset) / self.current_scale
+        
+        try:
+
+            self.megjelenitett_kep = self.megjelenitett_kep.crop(
+                (int(x1_kep), int(y1_kep), int(x2_kep), int(y2_kep))
+            )
+            
+            self.kijeloles_mod_ki()
+            self.kep_megjelenitese()
+
+        except Exception as e:
+            messagebox.showerror("Hiba", f"Hiba a vágás alkalmazásakor: {e}")
+            self.kijeloles_mod_ki()
+
+    def kijeloles_mod_ki(self):
+        self.is_cropping = False
+        
+        self.canvas.unbind("<ButtonPress-1>")
+        self.canvas.unbind("<B1-Motion>")
+        self.canvas.unbind("<ButtonRelease-1>")
+        
+        if self.crop_rectangle_id:
+            self.canvas.delete(self.crop_rectangle_id)
+            self.crop_rectangle_id = None
+        
+        self.crop_start_x = None
+        self.crop_start_y = None
+        
+        self.kijeloles_gomb.config(state=tk.NORMAL)
+        self.vagas_gomb.config(state=tk.DISABLED)
+        self.vagas_elvetese_gomb.config(state=tk.DISABLED)
+        self.forgatas_gomb.config(state=tk.NORMAL)
+        self.ai_gomb.config(state=tk.NORMAL)
+
+    def vagas_elvetese(self):
+        if self.is_cropping:
+            self.kijeloles_mod_ki()
+        else:
+            messagebox.showinfo("Vágás", "Nem volt folyamatban lévő vágás.")
+        
+        self.kijeloles_gomb.config(state=tk.NORMAL)
+        self.forgatas_gomb.config(state=tk.NORMAL)
+        self.ai_gomb.config(state=tk.NORMAL)
+
 
 if __name__ == "__main__":
     root = tk.Tk()
