@@ -33,8 +33,10 @@ class KepSzerkeszto:
         self.canvas = tk.Canvas(master, bg="lightgray")
         self.canvas.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
 
-        info_label = tk.Label(master, text="Nyomd meg az ESC billentyűt a kilépéshez!", fg="black")
-        info_label.grid(row=0, column=0, sticky="ew", pady=(10, 5))
+        self.fomuvelet_frame = tk.Frame(master)
+        self.fomuvelet_frame.grid(row=0, column=0, pady=(10, 5), sticky="ew")
+        self.info_label = tk.Label(self.fomuvelet_frame, text="Nyomd meg az ESC billentyűt a kilépéshez!", fg="black")
+        self.info_label.pack(side=tk.RIGHT, padx=10)
 
         self.gomb_frame = tk.Frame(master)
         self.gomb_frame.grid(row=2, column=0, pady=(5, 10))
@@ -46,10 +48,13 @@ class KepSzerkeszto:
         self.ai_frame2.grid(row=4, column=0, pady=(5, 10))
 
         #gombok
-        self.betoltes_gomb = tk.Button(self.gomb_frame, text="Kép Betöltés", command=self.kep_betoltese)
+        self.betoltes_gomb = tk.Button(self.fomuvelet_frame, text="Kép Betöltés", command=self.kep_betoltese)
         self.betoltes_gomb.pack(side=tk.LEFT, padx=10)
 
-        self.mentes_gomb = tk.Button(self.gomb_frame, text="Mentés", command=self.kep_mentese, state=tk.DISABLED)
+        self.visszavonas_gomb = tk.Button(self.fomuvelet_frame, text="Visszavonás", command=self.visszavonas, state=tk.DISABLED)
+        self.visszavonas_gomb.pack(side=tk.LEFT, padx=10)
+
+        self.mentes_gomb = tk.Button(self.fomuvelet_frame, text="Mentés", command=self.kep_mentese, state=tk.DISABLED)
         self.mentes_gomb.pack(side=tk.LEFT, padx=10)
 
         self.forgatas_gomb = tk.Button(self.gomb_frame, text="Forgatás 90°", command=self.kep_forgatasa, state=tk.DISABLED)
@@ -102,6 +107,11 @@ class KepSzerkeszto:
         self.x_offset = 0
         self.y_offset = 0
 
+
+        self.MAX_UNDO_HISTORY = 5
+        self.undo_stack = []
+        self.stack_pointer = -1
+
     def kilepes_teljes_kepernyobol(self, event):
         self.master.attributes('-fullscreen', False)
         self.master.destroy() 
@@ -152,6 +162,10 @@ class KepSzerkeszto:
                 self.megjelenitett_kep = self.eredeti_kep.copy()
                 self.master.update_idletasks() 
                 self.kep_megjelenitese()
+
+                self.undo_stack = []
+                self.stack_pointer = -1
+                self.allapot_mentese() 
                 
                 self.mentes_gomb.config(state=tk.NORMAL)
                 self.ai_gomb.config(state=tk.NORMAL)
@@ -172,6 +186,40 @@ class KepSzerkeszto:
                     self.megjelenitett_kep.save(fajl_utvonal)
                 except Exception as e:
                     messagebox.showerror("Hiba", f"Hiba a mentéskor: {e}")
+
+
+
+    def allapot_mentese(self):
+        if self.megjelenitett_kep is None:
+            return
+
+        if self.stack_pointer < len(self.undo_stack) - 1:
+            self.undo_stack = self.undo_stack[:self.stack_pointer + 1]
+
+        self.undo_stack.append(self.megjelenitett_kep.copy())
+        self.stack_pointer += 1
+
+        if len(self.undo_stack) > self.MAX_UNDO_HISTORY:
+            self.undo_stack.pop(0)
+            self.stack_pointer -= 1
+
+        self.visszavonas_gomb_frissitese()
+
+    def visszavonas(self):
+        if self.stack_pointer > 0:
+            self.stack_pointer -= 1
+            
+            self.megjelenitett_kep = self.undo_stack[self.stack_pointer].copy()
+            
+            self.kep_megjelenitese()
+        
+        self.visszavonas_gomb_frissitese()
+
+    def visszavonas_gomb_frissitese(self):
+        if self.stack_pointer > 0:
+            self.visszavonas_gomb.config(state=tk.NORMAL)
+        else:
+            self.visszavonas_gomb.config(state=tk.DISABLED)
 
     def forditas_angolra(self, felhasznalo_prompt):
         classifier = pipeline(
@@ -241,6 +289,7 @@ class KepSzerkeszto:
             jelenlegi_magassag = self.canvas.winfo_height()
             
             self.canvas.config(width=jelenlegi_magassag, height=jelenlegi_szelesseg)
+            self.allapot_mentese()
             self.kep_megjelenitese()
 
     def kijeloles_mod_be(self):
@@ -311,6 +360,7 @@ class KepSzerkeszto:
             )
             
             self.kijeloles_mod_ki()
+            self.allapot_mentese()
             self.kep_megjelenitese()
 
         except Exception as e:
