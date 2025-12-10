@@ -15,6 +15,13 @@ try:
 except ImportError:
     LANCZOS = Image.LANCZOS
 
+FRAME_BG = "#2C4A3F"
+BUTTON_FG = "#2C4A3F"
+BUTTON_BG = "white"
+LABEL_FONT_SIZE = 14
+AI_LABEL_FONT_SIZE = 11
+AI_ENTRY_FONT_SIZE=9
+
 class KepSzerkeszto:
     def __init__(self, master):
         self.master = master
@@ -22,6 +29,8 @@ class KepSzerkeszto:
 
         master.attributes('-fullscreen', True)
         master.bind('<Escape>', self.kilepes_teljes_kepernyobol)
+
+        self.master.config(bg=FRAME_BG)
 
         self.master.grid_rowconfigure(1, weight=1)
         self.master.grid_columnconfigure(0, weight=1)
@@ -33,75 +42,85 @@ class KepSzerkeszto:
         self.canvas = tk.Canvas(master, bg="lightgray")
         self.canvas.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
 
-        self.fomuvelet_frame = tk.Frame(master)
+        self.fomuvelet_frame = tk.Frame(master, bg=FRAME_BG)
         self.fomuvelet_frame.grid(row=0, column=0, pady=(10, 5), sticky="ew")
-        self.info_label = tk.Label(self.fomuvelet_frame, text="Nyomd meg az ESC billentyűt a kilépéshez!", fg="black")
+        self.info_label = tk.Label(self.fomuvelet_frame, text="Nyomja meg az ESC billentyűt a kilépéshez!", fg="white", bg=FRAME_BG)
         self.info_label.pack(side=tk.RIGHT, padx=10)
 
-        self.gomb_frame = tk.Frame(master)
+        self.gomb_frame = tk.Frame(master, bg=FRAME_BG)
         self.gomb_frame.grid(row=2, column=0, pady=(5, 10))
 
-        self.ai_frame = tk.Frame(master)
+        self.ai_frame = tk.Frame(master, bg=FRAME_BG)
         self.ai_frame.grid(row=3, column=0, pady=(5, 10))
 
-        self.ai_frame2 = tk.Frame(master)
+        self.ai_frame2 = tk.Frame(master, bg=FRAME_BG)
         self.ai_frame2.grid(row=4, column=0, pady=(5, 10))
 
+
+        def create_icon_button(parent, text, command, state=tk.NORMAL):
+            return tk.Button(parent, text=text, command=command, state=state,
+                             bd=0, bg=BUTTON_BG, fg=BUTTON_FG, 
+                             activebackground="lightgray", 
+                             font=('Arial', 14),
+                             compound=tk.CENTER,
+                             padx=5, pady=5)
         #gombok
-        self.betoltes_gomb = tk.Button(self.fomuvelet_frame, text="Kép Betöltés", command=self.kep_betoltese)
+        self.betoltes_gomb = create_icon_button(self.fomuvelet_frame, "Kép Betöltése", self.kep_betoltese)
         self.betoltes_gomb.pack(side=tk.LEFT, padx=10)
 
-        self.visszavonas_gomb = tk.Button(self.fomuvelet_frame, text="Visszavonás", command=self.visszavonas, state=tk.DISABLED)
+        self.visszavonas_gomb = create_icon_button(self.fomuvelet_frame, "Visszavonás", self.visszavonas, tk.DISABLED)
         self.visszavonas_gomb.pack(side=tk.LEFT, padx=10)
 
-        self.mentes_gomb = tk.Button(self.fomuvelet_frame, text="Mentés", command=self.kep_mentese, state=tk.DISABLED)
+        self.mentes_gomb = create_icon_button(self.fomuvelet_frame, "Mentés", self.kep_mentese, tk.DISABLED)
         self.mentes_gomb.pack(side=tk.LEFT, padx=10)
 
-        self.forgatas_gomb = tk.Button(self.gomb_frame, text="Forgatás 90°", command=self.kep_forgatasa, state=tk.DISABLED)
+        self.forgatas_gomb = create_icon_button(self.gomb_frame, "Forgatás", self.kep_forgatasa, tk.DISABLED)
         self.forgatas_gomb.pack(side=tk.LEFT, padx=10)
 
-        self.kijeloles_gomb = tk.Button(self.gomb_frame, text="Kijelölés", command=self.kijeloles_mod_be, state=tk.DISABLED)
+        self.kijeloles_gomb = create_icon_button(self.gomb_frame, "Kijelölés", self.kijeloles_mod_be, tk.DISABLED)
         self.kijeloles_gomb.pack(side=tk.LEFT, padx=10)
         
-        self.vagas_gomb = tk.Button(self.gomb_frame, text="Vágás", command=self.vagas_alkalmazasa, state=tk.DISABLED)
+        self.vagas_gomb = create_icon_button(self.gomb_frame, "Vágás", self.vagas_alkalmazasa, tk.DISABLED)
         self.vagas_gomb.pack(side=tk.LEFT, padx=10)
         
-        self.kijeloles_elvetese_gomb = tk.Button(self.gomb_frame, text="Kijelölés Elvetése", command=self.kijeloles_elvetese, state=tk.DISABLED)
+        self.kijeloles_elvetese_gomb = create_icon_button(self.gomb_frame, "Kijelölés Elvetése", self.kijeloles_elvetese, tk.DISABLED)
         self.kijeloles_elvetese_gomb.pack(side=tk.LEFT, padx=10)
 
-        self.atmeretezes_gomb = tk.Button(self.gomb_frame, text="Átméretezés", command=self.atmeretezes_ablak, state=tk.DISABLED)
+        self.atmeretezes_gomb =create_icon_button(self.gomb_frame, "Átméretezés", self.atmeretezes_ablak, tk.DISABLED)
         self.atmeretezes_gomb.pack(side=tk.LEFT, padx=10)
 
-        self.szinkorrekcio_gomb = tk.Button(self.gomb_frame, text="Színkorrekció", command=self.szinkorrekcio_ablak, state=tk.DISABLED)
+        self.szinkorrekcio_gomb = create_icon_button(self.gomb_frame, "Színkorrekció", self.szinkorrekcio_ablak, tk.DISABLED)
         self.szinkorrekcio_gomb.pack(side=tk.LEFT, padx=10)
 
-        self.ai_gomb = tk.Button(self.ai_frame, text="Átalakítás", command=self.ai_atalakitas, state=tk.DISABLED)
-        self.ai_gomb.pack(side=tk.LEFT, padx=10)
+        
 
         self.entry_prompt_var = tk.StringVar()
         self.neg_prompt_var = tk.StringVar()
         self.entry_valtozas_var = tk.StringVar()
         self.entry_erosseg_var = tk.StringVar()
         #input
-        self.prompt_label = tk.Label(self.ai_frame, text="Add meg az átalakítás utasítását!", fg="black")
+        self.prompt_label = tk.Label(self.ai_frame, text="Adja meg az átalakítás utasítását!", fg="white", bg=FRAME_BG, font=('Arial', AI_LABEL_FONT_SIZE))
         self.prompt_label.pack(side=tk.LEFT, padx=10)
-        self.prompt_entry= tk.Entry(self.ai_frame,textvariable = self.entry_prompt_var, width= 100)
+        self.prompt_entry= tk.Entry(self.ai_frame,textvariable = self.entry_prompt_var, width= 100, font=('Arial', AI_ENTRY_FONT_SIZE))
         self.prompt_entry.pack(side=tk.LEFT, padx=10)
         #negativ prompt
-        self.neg_prompt_label = tk.Label(self.ai_frame, text="Add meg mit hagyjon ki (opcionális)!", fg="black")
+        self.neg_prompt_label = tk.Label(self.ai_frame, text="Adja meg mit hagyjon ki (opcionális)!", fg="white", bg=FRAME_BG, font=('Arial', AI_LABEL_FONT_SIZE))
         self.neg_prompt_label.pack(side=tk.LEFT, padx=10)
-        self.neg_prompt_entry= tk.Entry(self.ai_frame,textvariable = self.neg_prompt_var, width= 40)
+        self.neg_prompt_entry= tk.Entry(self.ai_frame,textvariable = self.neg_prompt_var, width= 40, font=('Arial', AI_ENTRY_FONT_SIZE))
         self.neg_prompt_entry.pack(side=tk.LEFT, padx=10)
         #valtozas
-        self.valtozas_label = tk.Label(self.ai_frame2, text="Változás (0-100)", fg="black")
+        self.valtozas_label = tk.Label(self.ai_frame2, text="Változás (0-100)", fg="white", bg=FRAME_BG, font=('Arial', AI_LABEL_FONT_SIZE))
         self.valtozas_label.pack(side=tk.LEFT, padx=10)
-        self.valtozas_entry= tk.Entry(self.ai_frame2,textvariable = self.entry_valtozas_var, width= 10)
+        self.valtozas_entry= tk.Entry(self.ai_frame2,textvariable = self.entry_valtozas_var, width= 10, font=('Arial', AI_ENTRY_FONT_SIZE))
         self.valtozas_entry.pack(side=tk.LEFT, padx=10)
         #erosseg
-        self.erosseg_label = tk.Label(self.ai_frame2, text="Erősség (0-100)", fg="black")
+        self.erosseg_label = tk.Label(self.ai_frame2, text="Erősség (0-100)", fg="white", bg=FRAME_BG, font=('Arial', AI_LABEL_FONT_SIZE))
         self.erosseg_label.pack(side=tk.LEFT, padx=10)
-        self.erosseg_entry= tk.Entry(self.ai_frame2,textvariable = self.entry_erosseg_var, width= 10)
+        self.erosseg_entry= tk.Entry(self.ai_frame2,textvariable = self.entry_erosseg_var, width= 10, font=('Arial', AI_ENTRY_FONT_SIZE))
         self.erosseg_entry.pack(side=tk.LEFT, padx=10)
+
+        self.ai_gomb = create_icon_button(self.ai_frame2, "Átalakítás", self.ai_atalakitas, tk.DISABLED)
+        self.ai_gomb.pack(side=tk.LEFT, padx=10)
 
 
 
