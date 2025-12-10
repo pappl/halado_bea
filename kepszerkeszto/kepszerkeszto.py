@@ -66,8 +66,11 @@ class KepSzerkeszto:
         self.vagas_gomb = tk.Button(self.gomb_frame, text="Vágás", command=self.vagas_alkalmazasa, state=tk.DISABLED)
         self.vagas_gomb.pack(side=tk.LEFT, padx=10)
         
-        self.vagas_elvetese_gomb = tk.Button(self.gomb_frame, text="Vágás Elvetése", command=self.vagas_elvetese, state=tk.DISABLED)
-        self.vagas_elvetese_gomb.pack(side=tk.LEFT, padx=10)
+        self.kijeloles_elvetese_gomb = tk.Button(self.gomb_frame, text="Kijelölés Elvetése", command=self.kijeloles_elvetese, state=tk.DISABLED)
+        self.kijeloles_elvetese_gomb.pack(side=tk.LEFT, padx=10)
+
+        self.atmeretezes_gomb = tk.Button(self.gomb_frame, text="Átméretezés", command=self.atmeretezes_ablak, state=tk.DISABLED)
+        self.atmeretezes_gomb.pack(side=tk.LEFT, padx=10)
 
         self.ai_gomb = tk.Button(self.ai_frame, text="Átalakítás", command=self.ai_atalakitas, state=tk.DISABLED)
         self.ai_gomb.pack(side=tk.LEFT, padx=10)
@@ -111,6 +114,8 @@ class KepSzerkeszto:
         self.MAX_UNDO_HISTORY = 5
         self.undo_stack = []
         self.stack_pointer = -1
+
+        self.internal_update = False
 
     def kilepes_teljes_kepernyobol(self, event):
         self.master.attributes('-fullscreen', False)
@@ -171,6 +176,9 @@ class KepSzerkeszto:
                 self.ai_gomb.config(state=tk.NORMAL)
                 self.forgatas_gomb.config(state=tk.NORMAL)
                 self.kijeloles_gomb.config(state=tk.NORMAL)
+                self.atmeretezes_gomb.config(state=tk.NORMAL)
+                self.kijeloles_elvetese_gomb.config(state=tk.DISABLED)
+                self.vagas_gomb.config(state=tk.DISABLED)
                 
             except Exception as e:
                 messagebox.showerror("Hiba", f"Hiba a kép betöltésekor: {e}")
@@ -276,6 +284,7 @@ class KepSzerkeszto:
                                strength=valtozas, 
                                guidance_scale=erosseg).images[0]
         self.kep_megjelenitese()
+        self.allapot_mentese()
         self.entry_prompt_var.set("")
         self.neg_prompt_var.set("")
         self.entry_valtozas_var.set("")
@@ -306,7 +315,9 @@ class KepSzerkeszto:
         self.vagas_gomb.config(state=tk.DISABLED)
         self.forgatas_gomb.config(state=tk.DISABLED)
         self.ai_gomb.config(state=tk.DISABLED)
-        self.vagas_elvetese_gomb.config(state=tk.NORMAL)
+        self.kijeloles_elvetese_gomb.config(state=tk.NORMAL)
+        self.atmeretezes_gomb.config(state=tk.DISABLED)
+
     
     def on_press(self, event):
         if self.is_cropping:
@@ -383,19 +394,114 @@ class KepSzerkeszto:
         
         self.kijeloles_gomb.config(state=tk.NORMAL)
         self.vagas_gomb.config(state=tk.DISABLED)
-        self.vagas_elvetese_gomb.config(state=tk.DISABLED)
+        self.kijeloles_elvetese_gomb.config(state=tk.DISABLED)
         self.forgatas_gomb.config(state=tk.NORMAL)
         self.ai_gomb.config(state=tk.NORMAL)
+        self.atmeretezes_gomb.config(state=tk.NORMAL)
 
-    def vagas_elvetese(self):
+    def kijeloles_elvetese(self):
         if self.is_cropping:
             self.kijeloles_mod_ki()
         else:
-            messagebox.showinfo("Vágás", "Nem volt folyamatban lévő vágás.")
+            messagebox.showinfo("Kijelölés", "Nem volt folyamatban lévő kijelölés.")
         
         self.kijeloles_gomb.config(state=tk.NORMAL)
         self.forgatas_gomb.config(state=tk.NORMAL)
         self.ai_gomb.config(state=tk.NORMAL)
+
+
+    def atmeretezes_ablak(self):
+        if not self.megjelenitett_kep:
+            messagebox.showerror("Hiba", "Nincs betöltött kép az átméretezéshez.")
+            return
+
+        self.atmeret_ablak = tk.Toplevel(self.master)
+        self.atmeret_ablak.title("Átméretezés")
+        self.atmeret_ablak.transient(self.master)
+        self.atmeret_ablak.grab_set()
+
+        w, h = self.megjelenitett_kep.size
+        
+        tk.Label(self.atmeret_ablak, text=f"Jelenlegi méret: {w} x {h} px").grid(row=0, column=0, columnspan=2, pady=5)
+        
+        tk.Label(self.atmeret_ablak, text="Új szélesség (px):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.uj_szelesseg_var = tk.StringVar(value=str(w))
+        tk.Entry(self.atmeret_ablak, textvariable=self.uj_szelesseg_var).grid(row=1, column=1, padx=5, pady=5)
+        
+        tk.Label(self.atmeret_ablak, text="Új magasság (px):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        self.uj_magassag_var = tk.StringVar(value=str(h))
+        tk.Entry(self.atmeret_ablak, textvariable=self.uj_magassag_var).grid(row=2, column=1, padx=5, pady=5)
+
+        self.aratartas_var = tk.BooleanVar(value=True)
+        tk.Checkbutton(self.atmeret_ablak, text="Arányok megtartása", variable=self.aratartas_var, command=self.atmeretezes_valtozas).grid(row=3, column=0, columnspan=2, pady=5)
+
+        tk.Button(self.atmeret_ablak, text="Átméretezés Alkalmazása", command=self.atmeretezes_alkalmazasa).grid(row=4, column=0, columnspan=2, pady=10)
+
+        self.uj_szelesseg_var.trace_add("write", lambda name, index, mode: self.atmeretezes_valtozas("w", name, index, mode))
+        self.uj_magassag_var.trace_add("write", lambda name, index, mode: self.atmeretezes_valtozas("h", name, index, mode))
+
+    def atmeretezes_valtozas(self, source=None, *args):
+        if self.internal_update:
+            return
+
+        if not self.aratartas_var.get() or not self.megjelenitett_kep:
+            return
+
+        try:
+            w, h = self.megjelenitett_kep.size
+            
+            uj_w_str = self.uj_szelesseg_var.get()
+            uj_h_str = self.uj_magassag_var.get()
+            
+            if w == 0 or h == 0 or not uj_w_str or not uj_h_str:
+                return
+
+            uj_w = int(uj_w_str)
+            uj_h = int(uj_h_str)
+
+            if w <= 0 or h <= 0:
+                return
+
+            ratio = w / h
+
+            self.internal_update = True
+
+            if source == "w":
+                uj_h_kalkulalt = int(uj_w / ratio)
+                self.uj_magassag_var.set(str(uj_h_kalkulalt))
+            elif source == "h":
+                uj_w_kalkulalt = int(uj_h * ratio)
+                self.uj_szelesseg_var.set(str(uj_w_kalkulalt))
+            
+        except ValueError:
+            pass
+        except Exception as e:
+            print(f"Hiba az átméretezés valtozásnál: {e}")
+        finally:
+            self.internal_update = False
+
+    def atmeretezes_alkalmazasa(self):
+        if not self.megjelenitett_kep:
+            return
+
+        try:
+            uj_w = int(self.uj_szelesseg_var.get())
+            uj_h = int(self.uj_magassag_var.get())
+
+            if uj_w <= 0 or uj_h <= 0:
+                messagebox.showerror("Hiba", "A szélességnek és magasságnak pozitív számnak kell lennie.")
+                return
+
+            self.megjelenitett_kep = self.megjelenitett_kep.resize((uj_w, uj_h), LANCZOS)
+            
+            self.kep_megjelenitese()
+            self.allapot_mentese()
+            self.atmeret_ablak.destroy()
+
+        except ValueError:
+            messagebox.showerror("Hiba", "Kérjük, csak egész számokat adjon meg a mérethez.")
+        except Exception as e:
+            messagebox.showerror("Hiba", f"Hiba az átméretezéskor: {e}")
 
 
 if __name__ == "__main__":
