@@ -1,6 +1,6 @@
 ﻿import string
 from diffusers import StableDiffusionImg2ImgPipeline
-from PIL import Image, ImageTk, ImageFilter 
+from PIL import Image, ImageTk, ImageFilter, ImageEnhance
 import requests
 import torch
 from transformers import pipeline
@@ -71,6 +71,9 @@ class KepSzerkeszto:
 
         self.atmeretezes_gomb = tk.Button(self.gomb_frame, text="Átméretezés", command=self.atmeretezes_ablak, state=tk.DISABLED)
         self.atmeretezes_gomb.pack(side=tk.LEFT, padx=10)
+
+        self.szinkorrekcio_gomb = tk.Button(self.gomb_frame, text="Színkorrekció", command=self.szinkorrekcio_ablak, state=tk.DISABLED)
+        self.szinkorrekcio_gomb.pack(side=tk.LEFT, padx=10)
 
         self.ai_gomb = tk.Button(self.ai_frame, text="Átalakítás", command=self.ai_atalakitas, state=tk.DISABLED)
         self.ai_gomb.pack(side=tk.LEFT, padx=10)
@@ -179,6 +182,7 @@ class KepSzerkeszto:
                 self.atmeretezes_gomb.config(state=tk.NORMAL)
                 self.kijeloles_elvetese_gomb.config(state=tk.DISABLED)
                 self.vagas_gomb.config(state=tk.DISABLED)
+                self.szinkorrekcio_gomb.config(state=tk.NORMAL)
                 
             except Exception as e:
                 messagebox.showerror("Hiba", f"Hiba a kép betöltésekor: {e}")
@@ -317,6 +321,7 @@ class KepSzerkeszto:
         self.ai_gomb.config(state=tk.DISABLED)
         self.kijeloles_elvetese_gomb.config(state=tk.NORMAL)
         self.atmeretezes_gomb.config(state=tk.DISABLED)
+        self.szinkorrekcio_gomb.config(state=tk.DISABLED)
 
     
     def on_press(self, event):
@@ -398,6 +403,7 @@ class KepSzerkeszto:
         self.forgatas_gomb.config(state=tk.NORMAL)
         self.ai_gomb.config(state=tk.NORMAL)
         self.atmeretezes_gomb.config(state=tk.NORMAL)
+        self.szinkorrekcio_gomb.config(state=tk.NORMAL)
 
     def kijeloles_elvetese(self):
         if self.is_cropping:
@@ -503,6 +509,103 @@ class KepSzerkeszto:
         except Exception as e:
             messagebox.showerror("Hiba", f"Hiba az átméretezéskor: {e}")
 
+
+    def szinkorrekcio_ablak(self):
+        if not self.megjelenitett_kep:
+            messagebox.showerror("Hiba", "Nincs betöltött kép a színkorrekcióhoz.")
+            return
+
+        self.szinkor_ablak = tk.Toplevel(self.master)
+        self.szinkor_ablak.title("Színkorrekció")
+        self.szinkor_ablak.transient(self.master)
+        self.szinkor_ablak.grab_set()
+
+        self.temp_kep = self.megjelenitett_kep.copy()
+        
+        self.feny_var = tk.DoubleVar(value=1.0)
+        self.kontraszt_var = tk.DoubleVar(value=1.0)
+        self.telitettseg_var = tk.DoubleVar(value=1.0)
+        
+        row_idx = 0
+
+        tk.Label(self.szinkor_ablak, text="Fényerő").grid(row=row_idx, column=0, padx=5, pady=5, sticky="w")
+        tk.Scale(self.szinkor_ablak, from_=0.1, to=3.0, resolution=0.1, orient=tk.HORIZONTAL, variable=self.feny_var, 
+                 command=lambda val: self.szinkor_elonezet('brightness')).grid(row=row_idx, column=1, padx=5, pady=5)
+        row_idx += 1
+
+        tk.Label(self.szinkor_ablak, text="Kontraszt").grid(row=row_idx, column=0, padx=5, pady=5, sticky="w")
+        tk.Scale(self.szinkor_ablak, from_=0.1, to=3.0, resolution=0.1, orient=tk.HORIZONTAL, variable=self.kontraszt_var, 
+                 command=lambda val: self.szinkor_elonezet('contrast')).grid(row=row_idx, column=1, padx=5, pady=5)
+        row_idx += 1
+
+        tk.Label(self.szinkor_ablak, text="Telítettség").grid(row=row_idx, column=0, padx=5, pady=5, sticky="w")
+        tk.Scale(self.szinkor_ablak, from_=0.0, to=3.0, resolution=0.1, orient=tk.HORIZONTAL, variable=self.telitettseg_var, 
+                 command=lambda val: self.szinkor_elonezet('color')).grid(row=row_idx, column=1, padx=5, pady=5)
+        row_idx += 1
+
+        tk.Button(self.szinkor_ablak, text="Alkalmazás", command=self.szinkor_alkalmazasa).grid(row=row_idx, column=0, columnspan=2, pady=10)
+        row_idx += 1
+        
+        tk.Button(self.szinkor_ablak, text="Elvetés", command=self.szinkor_ablak.destroy).grid(row=row_idx, column=0, columnspan=2, pady=5)
+
+    def szinkor_elonezet(self, enhancement_type):
+        if self.megjelenitett_kep is None:
+            return
+
+        kep_aktualis = self.megjelenitett_kep.copy()
+        
+        feny_faktor = self.feny_var.get()
+        kep_aktualis = ImageEnhance.Brightness(kep_aktualis).enhance(feny_faktor)
+
+        kontraszt_faktor = self.kontraszt_var.get()
+        kep_aktualis = ImageEnhance.Contrast(kep_aktualis).enhance(kontraszt_faktor)
+
+        telitettseg_faktor = self.telitettseg_var.get()
+        kep_aktualis = ImageEnhance.Color(kep_aktualis).enhance(telitettseg_faktor)
+        
+        self.temp_kep = kep_aktualis
+        self.kep_megjelenitese_temp(self.temp_kep)
+
+
+    def kep_megjelenitese_temp(self, kep_to_display):
+        
+        self.master.update_idletasks()
+        
+        kep_szelesseg, kep_magassag = kep_to_display.size
+        canvas_szelesseg = self.canvas.winfo_width()
+        canvas_magassag = self.canvas.winfo_height()
+
+        ratio_w = canvas_szelesseg / kep_szelesseg
+        ratio_h = canvas_magassag / kep_magassag
+        ratio = min(ratio_w, ratio_h)
+        
+        new_width = int(kep_szelesseg * ratio)
+        new_height = int(kep_magassag * ratio)
+        
+        if ratio > 1:
+            new_width = kep_szelesseg
+            new_height = kep_magassag
+
+        kep_resized = kep_to_display.resize((new_width, new_height), LANCZOS)
+        
+        self.tk_kep_temp = ImageTk.PhotoImage(kep_resized)
+        
+        self.canvas.delete("all")  
+        
+        x_pos = (canvas_szelesseg - new_width) // 2
+        y_pos = (canvas_magassag - new_height) // 2
+        
+        self.canvas.create_image(x_pos, y_pos, anchor=tk.NW, image=self.tk_kep_temp)
+
+
+    def szinkor_alkalmazasa(self):
+        if self.megjelenitett_kep is None:
+            return
+
+        self.megjelenitett_kep = self.temp_kep.copy() 
+        self.kep_megjelenitese() 
+        self.allapot_mentese()
+        self.szinkor_ablak.destroy()
 
 if __name__ == "__main__":
     root = tk.Tk()
